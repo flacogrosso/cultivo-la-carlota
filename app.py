@@ -1,96 +1,50 @@
-import streamlit as st
-import pandas as pd
-import requests
-import numpy as np
-import datetime
+# --- MÓDULO: DIAGNÓSTICO NUTRICIONAL ---
+elif menu == "Diagnóstico Nutricional":
+    st.title("🍂 Diagnóstico por Sintomatología Visual")
+    st.info("Observá las hojas de tu planta y seleccioná los síntomas. Los nutrientes se dividen en Móviles (afectan hojas viejas) e Inmóviles (afectan hojas nuevas).")
 
-# --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="AsesorPro La Carlota", layout="wide", page_icon="🌿")
+    col_diag1, col_diag2 = st.columns([1, 2])
 
-# Ubicación Geográfica: La Carlota, Córdoba
-LAT, LON = -33.42, -63.30
-
-# --- LÓGICA DE CLIMA (Open-Meteo) ---
-def fetch_data():
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={LAT}&longitude={LON}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=America%2FArgentina%2FCordoba&forecast_days=3"
-    try:
-        r = requests.get(url).json()
-        return r['current'], r['daily']
-    except: return None, None
-
-def calcular_vpd(t, h):
-    es = 0.61078 * np.exp((17.27 * t) / (t + 237.3))
-    ea = es * (h / 100)
-    return round(es - ea, 2)
-
-# --- MENÚ LATERAL ---
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/628/628283.png", width=80)
-st.sidebar.title("AsesorPro V2.0")
-menu = st.sidebar.selectbox("Módulos", ["🏠 Inicio", "🌤️ Clima & VPD", "🧪 Nutrición", "✂️ Cosecha Criolla", "⚖️ Legal"])
-
-# --- MÓDULOS ---
-if menu == "🏠 Inicio":
-    st.title("🌱 Portal de Cultivo La Carlota")
-    st.write("Bienvenido a tu sistema de gestión agronómica. Este portal utiliza datos en tiempo real de tu ubicación para optimizar la salud de tus plantas.")
-    st.info("💡 **Consejo:** Usá el menú lateral para navegar entre la calculadora de riego y el monitoreo climático.")
-
-elif menu == "🌤️ Clima & VPD":
-    st.header("Monitoreo en Tiempo Real")
-    curr, daily = fetch_data()
-    if curr:
-        t, h, v = curr['temperature_2m'], curr['relative_humidity_2m'], curr['wind_speed_10m']
-        vpd = calcular_vpd(t, h)
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Temperatura", f"{t}°C")
-        col2.metric("Humedad", f"{h}%")
-        col3.metric("VPD", f"{vpd} kPa")
-        col4.metric("Viento", f"{v} km/h")
+    with col_diag1:
+        st.subheader("🔍 Localización")
+        zona = st.radio("¿Dónde empezaron los síntomas?", 
+                        ["Hojas Bajas (Viejas)", "Hojas Superiores (Nuevas)", "Toda la Planta"])
         
-        if v > 35: st.error(f"🚩 ALERTA VIENTO: {v} km/h. ¡Asegurá tus plantas!")
-    
-    
-    
+        st.subheader("🎨 Color y Forma")
+        sintoma = st.selectbox("¿Qué observás?", [
+            "Amarilleamiento uniforme", 
+            "Puntas quemadas/marrones", 
+            "Manchas color óxido/bronce", 
+            "Hojas verde muy oscuro y en garra",
+            "Nervaduras verdes pero hoja amarilla",
+            "Tallos púrpuras y crecimiento lento"
+        ])
+
+    with col_diag2:
+        st.subheader("📋 Diagnóstico Probable")
+        
+        # Lógica de Diagnóstico
+        if zona == "Hojas Bajas (Viejas)":
+            if "Amarilleamiento" in sintoma:
+                st.error("**Deficiencia de Nitrógeno (N):** La planta consume sus reservas para crecer. Común en vegetativo.")
+                st.write("**Solución:** Aumentar dosis de fertilizante base o humus de lombriz.")
+            elif "Puntas quemadas" in sintoma:
+                st.warning("**Exceso de Nutrientes (Overfert):** Sales acumuladas. Lavar raíces.")
+        
+        elif zona == "Hojas Superiores (Nuevas)":
+            if "Nervaduras verdes" in sintoma:
+                st.error("**Deficiencia de Hierro (Fe):** Común por pH muy alto en La Carlota.")
+                st.write("**Solución:** Regular el pH a 6.0 - 6.5.")
+            elif "Puntas quemadas" in sintoma:
+                st.warning("**Deficiencia de Calcio/Magnesio:** Ocurre con agua de lluvia o muy blanda.")
+
+        elif "Toda la Planta" in zona:
+            if "verde muy oscuro" in sintoma:
+                st.error("**Exceso de Nitrógeno:** Peligroso en floración, atrae plagas y retrasa el engorde.")
+        
+        
+
     st.divider()
-    st.subheader("🔮 Pronóstico 3 Días")
-    if daily:
-        cols = st.columns(3)
-        for i in range(3):
-            with cols[i]:
-                st.write(f"**{daily['time'][i]}**")
-                st.write(f"🌡️ {daily['temperature_2m_min'][i]}°/{daily['temperature_2m_max'][i]}°")
-                st.write(f"🌧️ Lluvia: {daily['precipitation_probability_max'][i]}%")
-
-elif menu == "🧪 Nutrición":
-    st.header("Calculadora de Mezclas")
-    litros = st.number_input("Litros de agua", 1, 100, 5)
-    fase = st.selectbox("Fase", ["Vegetativo", "Floración"])
-    marca = st.radio("Marca", ["Namasté", "Top Crop", "Criolla (50% Dosis)"])
     
-    # Lógica de dosis simplificada
-    dosis = 2.0 if fase == "Vegetativo" else 4.0
-    if marca == "Criolla (50% Dosis)": dosis *= 0.5
-    
-    st.success(f"Dosis recomendada: **{litros * dosis} ml** de fertilizante base.")
-
-elif menu == "✂️ Cosecha Criolla":
-    st.header("Estimación Genética")
-    st.write("Ideal para plantas de origen incierto (semillas criollas).")
-    
-    hoja = st.radio("Forma de la hoja", ["Fina (Sativa/Paraguaya)", "Ancha (Índica/Cruza)"])
-    inicio = st.date_input("Inicio de Floración")
-    semanas = 13 if hoja == "Fina (Sativa/Paraguaya)" else 9
-    
-    
-    
-    fecha_c = inicio + datetime.timedelta(weeks=semanas)
-    st.metric("Fecha Estimada de Corte", fecha_c.strftime("%d-%m-%Y"))
-    st.warning("⚠️ Recordá: Las criollas sativas pueden tardar hasta fines de Mayo.")
-
-elif menu == "⚖️ Legal":
-    st.header("Documentación REPROCANN")
-    st.markdown("""
-    * **Límite:** 9 plantas en floración.
-    * **Transporte:** 40g flores secas.
-    * **Ubicación:** La Carlota, Córdoba.
-    """)
-    st.button("Generar PDF de Emergencia")
+    # Tabla de Referencia Rápida
+    st.subheader("💡 Tabla de Consulta de Nutrientes")
