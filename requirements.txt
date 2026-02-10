@@ -2,4 +2,6 @@ streamlit
 pandas
 requests
 numpy
-streamlit-gsheets
+streamlit-js-eval
+mercadopago
+psycopg2-binary
