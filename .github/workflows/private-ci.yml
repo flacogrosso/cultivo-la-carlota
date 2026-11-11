@@ -1,0 +1,25 @@
+name: Validación versión personal
+on:
+  push:
+    branches:
+      - feat/personal-v1-hardening
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint-syntax-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verificar sintaxis Python
+        run: python -m compileall -q app.py server.py personal_access.py tests
+      - name: Instalar dependencias de la app
+        run: python -m pip install -r requirements.txt
+      - name: Pruebas y smoke test sin credenciales
+        run: python -m unittest discover -s tests -v
