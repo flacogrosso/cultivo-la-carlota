@@ -244,38 +244,70 @@ def mostrar_tutorial(modulo_nombre):
             st.rerun()
 
 def guardar_cultivos(cultivos, user_email=""):
+    """Agrega solo los cultivos nuevos; nunca borra los registros existentes."""
     email_key = user_email.strip().lower() if user_email else ""
     conn = get_db_conn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM cultivos WHERE LOWER(email) = %s", (email_key,))
         for c in cultivos:
+            if c.get("id"):
+                continue
             inicio = c.get("inicio")
             if isinstance(inicio, datetime.datetime):
                 inicio = inicio.date()
             elif isinstance(inicio, str):
                 inicio = datetime.date.fromisoformat(inicio)
+            categoria = c.get("categoria") or str(c.get("sistema", "")).split(" ")[0]
+            maceta = str(c.get("maceta_litros") or c.get("maceta") or "")
             cur.execute(
-                "INSERT INTO cultivos (email, nombre, sistema, categoria, maceta, inicio) VALUES (%s, %s, %s, %s, %s, %s)",
-                (email_key, c.get("nombre", ""), c.get("sistema", ""), c.get("categoria") or str(c.get("sistema", "")).split(" ")[0], str(c.get("maceta_litros") or c.get("maceta") or ""), inicio)
+                "INSERT INTO cultivos (email, nombre, sistema, categoria, maceta, inicio) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+                (email_key, c.get("nombre", ""), c.get("sistema", ""), categoria, maceta, inicio)
             )
+            c["id"] = cur.fetchone()[0]
         conn.commit()
+        return True
     except Exception as e:
         print(f"[DB] Error guardando cultivos: {e}")
         conn.rollback()
+        for c in cultivos:
+            if c.get("id") and c.get("id") not in ():
+                pass
+        return False
     finally:
         conn.close()
+
+
+def eliminar_cultivo(cultivo_id, user_email=""):
+    """Elimina una fila concreta de la cuenta actual, nunca todo el historial."""
+    if not isinstance(cultivo_id, int):
+        return False
+    email_key = user_email.strip().lower() if user_email else ""
+    conn = get_db_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM cultivos WHERE id = %s AND LOWER(email) = %s", (cultivo_id, email_key))
+        eliminado = cur.rowcount == 1
+        conn.commit()
+        return eliminado
+    except Exception as e:
+        print(f"[DB] Error eliminando cultivo: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
 
 def cargar_cultivos(user_email=""):
     email_key = user_email.strip().lower() if user_email else ""
     conn = get_db_conn()
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute("SELECT nombre, sistema, categoria, maceta, inicio FROM cultivos WHERE LOWER(email) = %s", (email_key,))
+        cur.execute("SELECT id, nombre, sistema, categoria, maceta, inicio FROM cultivos WHERE LOWER(email) = %s ORDER BY id", (email_key,))
         rows = cur.fetchall()
         cultivos = []
         for r in rows:
             cultivos.append({
+                "id": r["id"],
                 "nombre": r["nombre"],
                 "sistema": r["sistema"],
                 "categoria": r.get("categoria", ""),
@@ -4954,9 +4986,12 @@ elif menu == "Seguimiento de Cultivo":
                 "sistema": nuevo_sistema,
                 "maceta_litros": maceta_litros_nuevo
             })
-            guardar_cultivos(st.session_state.cultivos, st.session_state.get("suscriptor_email", ""))
-            st.success(f"Cultivo '{nuevo_nombre}' agregado correctamente.")
-            st.rerun()
+            if guardar_cultivos(st.session_state.cultivos, st.session_state.get("suscriptor_email", "")):
+                st.success(f"Cultivo '{nuevo_nombre}' agregado correctamente.")
+                st.rerun()
+            else:
+                st.session_state.cultivos.pop()
+                st.error("No se pudo guardar el cultivo. No se modificaron los registros anteriores.")
         else:
             st.error("Ingresá un nombre para el cultivo.")
 
@@ -5057,6 +5092,9 @@ elif menu == "Seguimiento de Cultivo":
 
         if indices_a_eliminar:
             for idx in sorted(indices_a_eliminar, reverse=True):
-                st.session_state.cultivos.pop(idx)
-            guardar_cultivos(st.session_state.cultivos, st.session_state.get("suscriptor_email", ""))
+                cultivo_borrado = st.session_state.cultivos[idx]
+                if eliminar_cultivo(cultivo_borrado.get("id"), st.session_state.get("suscriptor_email", "")):
+                    st.session_state.cultivos.pop(idx)
+                else:
+                    st.error(f"No se eliminó '{cultivo_borrado.get('nombre', 'cultivo')}'. La base permanece sin cambios para ese registro.")
             st.rerun()
