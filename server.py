@@ -15,8 +15,8 @@ def start_streamlit():
         "--server.port", str(STREAMLIT_PORT),
         "--server.address", "127.0.0.1",
         "--server.headless", "true",
-        "--server.enableCORS", "false",
-        "--server.enableXsrfProtection", "false",
+        "--server.enableCORS", "true",
+        "--server.enableXsrfProtection", "true",
     ])
     proc.wait()
     sys.exit(1)
