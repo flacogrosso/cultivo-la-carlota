@@ -247,6 +247,7 @@ def guardar_cultivos(cultivos, user_email=""):
     """Agrega solo los cultivos nuevos; nunca borra los registros existentes."""
     email_key = user_email.strip().lower() if user_email else ""
     conn = get_db_conn()
+    ids_pendientes = []
     try:
         cur = conn.cursor()
         for c in cultivos:
@@ -263,15 +264,14 @@ def guardar_cultivos(cultivos, user_email=""):
                 "INSERT INTO cultivos (email, nombre, sistema, categoria, maceta, inicio) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
                 (email_key, c.get("nombre", ""), c.get("sistema", ""), categoria, maceta, inicio)
             )
-            c["id"] = cur.fetchone()[0]
+            ids_pendientes.append((c, cur.fetchone()[0]))
         conn.commit()
+        for cultivo, nuevo_id in ids_pendientes:
+            cultivo["id"] = nuevo_id
         return True
     except Exception as e:
         print(f"[DB] Error guardando cultivos: {e}")
         conn.rollback()
-        for c in cultivos:
-            if c.get("id") and c.get("id") not in ():
-                pass
         return False
     finally:
         conn.close()
