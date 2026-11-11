@@ -19,5 +19,7 @@ jobs:
           python-version: "3.12"
       - name: Verificar sintaxis Python
         run: python -m compileall -q app.py server.py personal_access.py tests
-      - name: Pruebas unitarias sin credenciales
+      - name: Instalar dependencias de la app
+        run: python -m pip install -r requirements.txt
+      - name: Pruebas y smoke test sin credenciales
         run: python -m unittest discover -s tests -v
