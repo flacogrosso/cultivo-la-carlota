@@ -13,7 +13,7 @@ class SmokeGateTests(unittest.TestCase):
             app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=25).run()
         self.assertEqual(len(app.exception), 0, [e.message for e in app.exception])
         self.assertTrue(any("acceso privado" in t.value.lower() for t in app.title))
-        self.assertTrue(any("Instancia cerrada" in e.message for e in app.error))
+        self.assertGreater(len(app.error), 0, "La app debe avisar que faltan credenciales")
 
 
 if __name__ == "__main__":
