@@ -28,3 +28,27 @@ Esta rama se prepara **solo para uso privado**. No tiene autorización para lanz
 - [ ] Verificada la configuración efectiva de XSRF, dominio y cookies
 
 **Este README no es evidencia de QA ni de despliegue.**
+
+
+## QA operativo — actualización 11/11/2026 (NO producción)
+- PR correctivo en borrador: #2, rama `fix/personal-v1-safe-deletes-20261111`, basada en `feat/personal-v1-hardening`. No fusionar ni promover sin validar el entorno final.
+- CI de esta rama: 29 pruebas PASS, incluidas seguridad de transacciones, sesión privada y recorrido de los siete módulos con servicios simulados.
+- Neon QA: proyecto `my-first-project`, rama `qa-personal-v1-20261111`; las cinco tablas están presentes y hay un único registro ficticio bajo `qa-only@local.invalid`.
+- Rama separada de ensayo de restauración: `qa-restore-verify-20261111`, con el mismo esquema, conteos, restricciones y huella de datos. La copia SQL QA debe almacenarse aparte. Esto NO acredita respaldo periódico ni recuperación de producción.
+- Neon `production` continúa sin tablas públicas. No conectar la app a esa rama ni ejecutar `init_db()` allí sin la puerta de producción correspondiente.
+
+### Instancia privada de Streamlit Community Cloud — secuencia de seguridad
+1. Crear una **nueva app** apuntando al repo `flacogrosso/cultivo-la-carlota`, rama `fix/personal-v1-safe-deletes-20261111` y archivo `app.py`. **No configurar secretos todavía.** Como el repo es público, inicialmente puede abrirse una URL pública, pero el acceso de la app falla cerrado al faltar la contraseña.
+2. Cambiar y verificar **Sharing → Only specific people can view this app**. Si la plataforma no permite privatizarla, detener la conexión; no introducir `DATABASE_URL` en una app pública.
+3. Solo después de comprobar la privacidad, guardar los secretos en **Settings → Secrets** (nunca en Git ni chat):
+   - `GLM_PERSONAL_ACCESS_PASSWORD`: contraseña única, fuerte, mínimo 16 caracteres.
+   - `DATABASE_URL`: **únicamente** la cadena de la rama `qa-personal-v1-20261111`, copiada desde Neon para esa rama. Confirmar proyecto, rama y base `neondb` antes de guardarla.
+   - `GLM_PERSONAL_ACCOUNT`: `qa-only@local.invalid` para leer el registro ficticio. **No usar un correo real en QA**.
+4. Probar desde una sesión de incógnito: acceso sin autenticación, contraseña errónea, contraseña válida, módulo de seguimiento (registro QA visible), cierre de sesión y expiración. Verificar en Desktop y móvil, registrar errores y screenshots sin datos privados.
+5. Deshabilitar la instancia QA o revocar credenciales de prueba cuando no se utilice. Nunca pasar la conexión QA a producción por accidente.
+
+### Gate pendiente para uso personal definitivo
+- Conexión de Streamlit QA real: NO VERIFICADA.
+- Navegación con AppTest y redes/BD simuladas: PASS; pruebas con navegador y dispositivos reales: NO VERIFICADAS.
+- Respaldo y restauración de QA ficticio: PASS; esquema/backup/productivo: NO VERIFICADO.
+- Verificar protección en Streamlit Cloud, separar credenciales y contar con una copia recuperable de producción antes de crear el primer cultivo personal definitivo.

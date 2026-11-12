@@ -3,9 +3,11 @@ on:
   push:
     branches:
       - feat/personal-v1-hardening
+      - fix/personal-v1-safe-deletes-20261111
   pull_request:
     branches:
       - main
+      - feat/personal-v1-hardening
 
 jobs:
   lint-syntax-tests:
