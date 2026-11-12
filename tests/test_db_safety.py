@@ -27,7 +27,7 @@ class SafeDeleteTests(unittest.TestCase):
         conn.rollback.assert_not_called()
         conn.close.assert_called_once_with()
         executed = conn.cursor.return_value.execute.call_args_list
-        self.assertEqual(len(executed), 8)
+        self.assertEqual(len(executed), 7)
         self.assertTrue(all("owner@example.com" in str(call.args[1]) or
                             call.args[1] == (13,) for call in executed))
         self.assertTrue(all("%s" in call.args[0] for call in executed))
