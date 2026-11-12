@@ -281,10 +281,10 @@ def eliminar_cultivo(cultivo_id, user_email=""):
     """Elimina solo el cultivo de la cuenta explícita; no acepta identidad vacía."""
     if type(cultivo_id) is not int or cultivo_id <= 0:
         return False
-    if not isinstance(user_email, str) or "@" not in user_email or " " in user_email:
+    if not isinstance(user_email, str):
         return False
     email_key = user_email.strip().lower()
-    if not email_key:
+    if not email_key or "@" not in email_key or " " in email_key:
         return False
     try:
         conn = get_db_conn()
@@ -528,10 +528,10 @@ def _decodificar_email(encoded):
 
 def eliminar_datos_usuario(email):
     """Elimina en una transacción y nunca informa éxito si falla."""
-    if not isinstance(email, str) or "@" not in email or " " in email:
+    if not isinstance(email, str):
         return False
     email_lower = email.strip().lower()
-    if not email_lower:
+    if not email_lower or "@" not in email_lower or " " in email_lower:
         return False
     try:
         conn = get_db_conn()
