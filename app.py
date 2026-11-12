@@ -278,11 +278,19 @@ def guardar_cultivos(cultivos, user_email=""):
 
 
 def eliminar_cultivo(cultivo_id, user_email=""):
-    """Elimina una fila concreta de la cuenta actual, nunca todo el historial."""
-    if not isinstance(cultivo_id, int):
+    """Elimina solo el cultivo de la cuenta explícita; no acepta identidad vacía."""
+    if type(cultivo_id) is not int or cultivo_id <= 0:
         return False
-    email_key = user_email.strip().lower() if user_email else ""
-    conn = get_db_conn()
+    if not isinstance(user_email, str) or "@" not in user_email or " " in user_email:
+        return False
+    email_key = user_email.strip().lower()
+    if not email_key:
+        return False
+    try:
+        conn = get_db_conn()
+    except Exception as e:
+        print(f"[DB] Error conectando para eliminar cultivo: {e}")
+        return False
     try:
         cur = conn.cursor()
         cur.execute("DELETE FROM cultivos WHERE id = %s AND LOWER(email) = %s", (cultivo_id, email_key))
@@ -295,7 +303,6 @@ def eliminar_cultivo(cultivo_id, user_email=""):
         return False
     finally:
         conn.close()
-
 
 def cargar_cultivos(user_email=""):
     email_key = user_email.strip().lower() if user_email else ""
@@ -520,8 +527,17 @@ def _decodificar_email(encoded):
         return encoded
 
 def eliminar_datos_usuario(email):
+    """Elimina en una transacción y nunca informa éxito si falla."""
+    if not isinstance(email, str) or "@" not in email or " " in email:
+        return False
     email_lower = email.strip().lower()
-    conn = get_db_conn()
+    if not email_lower:
+        return False
+    try:
+        conn = get_db_conn()
+    except Exception as e:
+        print(f"[DB] Error conectando para eliminar datos: {e}")
+        return False
     try:
         cur = conn.cursor()
         cur.execute("DELETE FROM suscriptores WHERE LOWER(email) = %s", (email_lower,))
@@ -534,12 +550,13 @@ def eliminar_datos_usuario(email):
         cur.execute("DELETE FROM codigos_referidos WHERE LOWER(email) = %s", (email_lower,))
         cur.execute("DELETE FROM cultivos WHERE LOWER(email) = %s", (email_lower,))
         conn.commit()
+        return True
     except Exception as e:
         print(f"[DB] Error eliminando datos: {e}")
         conn.rollback()
+        return False
     finally:
         conn.close()
-    return True
 
 def crear_preferencia_mp(email, plan, ref_code=""):
     try:
@@ -2022,14 +2039,16 @@ if sub_email and not PERSONAL_MODE:
         col_si, col_no = st.sidebar.columns(2)
         with col_si:
             if st.button("Sí, eliminar", key="btn_confirmar_eliminar"):
-                eliminar_datos_usuario(sub_email)
-                streamlit_js_eval(js_expressions="localStorage.removeItem('glm_email')", key="borrar_email_delete")
-                st.session_state["suscriptor_email"] = ""
-                st.session_state["suscripcion_activa"] = False
-                st.session_state["confirmar_eliminacion"] = False
-                st.session_state["recordar_usuario"] = False
-                st.sidebar.success("✅ Tus datos fueron eliminados.")
-                st.rerun()
+                if eliminar_datos_usuario(sub_email):
+                    streamlit_js_eval(js_expressions="localStorage.removeItem('glm_email')", key="borrar_email_delete")
+                    st.session_state["suscriptor_email"] = ""
+                    st.session_state["suscripcion_activa"] = False
+                    st.session_state["confirmar_eliminacion"] = False
+                    st.session_state["recordar_usuario"] = False
+                    st.sidebar.success("✅ Tus datos fueron eliminados.")
+                    st.rerun()
+                else:
+                    st.sidebar.error("No se pudieron eliminar los datos. Conservamos tu sesión; intentá nuevamente.")
         with col_no:
             if st.button("Cancelar", key="btn_cancelar_eliminar"):
                 st.session_state["confirmar_eliminacion"] = False
